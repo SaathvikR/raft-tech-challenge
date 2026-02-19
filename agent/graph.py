@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Force set for langchain's internal validation
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENROUTER_API_KEY", "")
 
 from langgraph.prebuilt import create_react_agent
@@ -17,13 +16,14 @@ llm = ChatOpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
 )
 
-SYSTEM_PROMPT = SystemMessage(content="""You are an order-data agent. When given a natural language query:
-1. Use tools to fetch raw order data from the API.
-2. Parse the unstructured text carefully.
-3. Filter results according to the user's query.
-4. Return ONLY valid JSON in this exact shape:
+SYSTEM_PROMPT = SystemMessage(content="""You are an order-data agent.
+Rules:
+- Call fetch_all_orders ONCE with limit=10. Do not call it multiple times.
+- Parse the raw text and filter based on the user query.
+- Respond with ONLY a valid JSON object. No explanation, no analysis, no extra text.
+- Use exactly this format:
 {"orders": [{"orderId": "...", "buyer": "...", "state": "...", "total": 0.0}]}
-Never hallucinate orders. If none match, return {"orders": []}.
+- If no orders match, return: {"orders": []}
 """)
 
 agent = create_react_agent(llm, tools=[fetch_all_orders, fetch_order_by_id],
