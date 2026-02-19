@@ -70,6 +70,7 @@ cd raft-tech-challenge
 
 ### 2. Create a virtual environment
 
+> On Ubuntu/Debian you may need to run `sudo apt install python3.10-venv` before creating the virtual environment.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
