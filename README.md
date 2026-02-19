@@ -1,6 +1,29 @@
 # Raft AI Engineer Coding Challenge
 
-An AI agent that accepts natural language queries about orders, fetches raw unstructured data from a local API, parses it using an LLM, and returns clean structured JSON — all inside an interactive terminal UI.
+A terminal-based AI agent that takes natural language queries about orders, hits a local REST API, parses the raw unstructured response using an LLM, and returns clean structured JSON. Built with LangGraph, LangChain, and a Textual TUI.
+
+---
+
+## What it does
+
+You type something like:
+
+```
+Show me all orders from Ohio where the total was over $500
+```
+
+The agent calls the local order API, feeds the messy text response to the LLM, filters it based on your query, and returns:
+
+```json
+{
+  "orders": [
+    { "orderId": "1005", "buyer": "Chris Myers", "state": "OH", "total": 512.0 },
+    { "orderId": "1009", "buyer": "David Okafor", "state": "OH", "total": 649.0 }
+  ]
+}
+```
+
+It also shows a live stats panel with a linear regression prediction of the next order value, trend direction, and average order total.
 
 ---
 
@@ -16,7 +39,6 @@ User Query (Terminal UI)
   [ LangGraph ReAct Agent ]
         │
         ├──► Tool: fetch_all_orders  ──► GET /api/orders
-        │
         ├──► Tool: fetch_order_by_id ──► GET /api/order/<id>
         │
         ▼
@@ -32,26 +54,28 @@ User Query (Terminal UI)
 
 ## Requirements
 
-- Python 3.10+
-- An [OpenRouter](https://openrouter.ai) API key
+- Python 3.10 or higher
+- An OpenRouter API key (free at [openrouter.ai](https://openrouter.ai))
 
 ---
 
 ## Setup
 
-### 1. Clone the repository
+### 1. Clone the repo
 
 ```bash
 git clone https://github.com/SaathvikR/raft-tech-challenge.git
 cd raft-tech-challenge
 ```
 
-### 2. Create and activate a virtual environment
+### 2. Create a virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
+
+> On Windows use: `.venv\Scripts\activate`
 
 ### 3. Install dependencies
 
@@ -59,119 +83,111 @@ source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 ```
 
-### 4. Create your `.env` file
+This installs everything needed — Flask, LangGraph, LangChain, Textual, scikit-learn, and all supporting packages.
 
-Create a file called `.env` in the root of the project:
+### 4. Add your API key
+
+Create a `.env` file in the project root:
 
 ```bash
 touch .env
 ```
 
-Open it and add your OpenRouter API key:
+Add your OpenRouter key to it:
 
 ```
-OPENROUTER_API_KEY=your_openrouter_key_here
+OPENAI_API_KEY=your_openrouter_key_here
 ```
 
-To get an API key:
+To get a key:
 - Go to [https://openrouter.ai](https://openrouter.ai)
-- Sign up and navigate to **Keys**
+- Sign up and go to **Keys**
 - Create a new key and paste it above
 
-> ⚠️ Never commit your `.env` file. It is already listed in `.gitignore`.
+> ⚠️ The `.env` file is in `.gitignore` and will never be committed. Don't share your key.
 
 ---
 
-## Running the App
+## Running the app
 
-You need two terminals running at the same time.
+You need two terminals open at the same time.
 
-### Terminal 1 — Start the order API
+**Terminal 1 — start the order API:**
 
 ```bash
 source .venv/bin/activate
 python3 dummy_customer_api.py
 ```
 
-You should see:
-```
-* Running on http://0.0.0.0:5001
-```
-
-### Terminal 2 — Start the agent UI
+**Terminal 2 — start the agent UI:**
 
 ```bash
 source .venv/bin/activate
 python3 main.py
 ```
 
-A terminal UI will launch. Type your query in the input box at the bottom and press **Enter** or click **Submit**.
-
 ---
 
-## Example Queries
+## Example queries to try
 
 ```
-Show me all orders where the buyer was located in Ohio and total value was over 500
-Show me all orders from Texas
-Which orders have a total over 1000?
+Show me all orders from Ohio over $500
+Show all orders from Texas
+Which orders have a total over $1000?
 Find orders for Rachel Kim
 Show me all orders under $200
+Show orders from the West Coast
 ```
 
 ---
 
-## Example Output
-
-```json
-{
-  "orders": [
-    { "orderId": "1001", "buyer": "John Davis", "state": "OH", "total": 742.1 },
-    { "orderId": "1003", "buyer": "Mike Turner", "state": "OH", "total": 1299.99 },
-    { "orderId": "1005", "buyer": "Chris Myers", "state": "OH", "total": 512.0 }
-  ]
-}
-```
-
----
-
-## Project Structure
+## Project structure
 
 ```
 raft-tech-challenge/
 ├── agent/
-│   ├── __init__.py        # marks agent/ as a Python package
-│   ├── graph.py           # LangGraph ReAct agent setup
-│   └── tools.py           # API call tools (fetch_all_orders, fetch_order_by_id)
-├── dummy_customer_api.py  # local Flask API serving fake order data
-├── main.py                # Textual terminal UI + agent runner
-├── requirements.txt       # Python dependencies
-├── .env                   # your API key (never committed)
+│   ├── __init__.py          # marks agent/ as a Python package
+│   ├── graph.py             # LangGraph ReAct agent + system prompt
+│   └── tools.py             # API call tools
+├── dummy_customer_api.py    # Flask API with 25 fake orders
+├── prediction.py            # linear regression on order totals
+├── main.py                  # Textual TUI — entry point
+├── requirements.txt         # all dependencies
+├── .env                     # your API key (never committed)
 └── .gitignore
 ```
 
 ---
 
-## Controls
+## UI controls
 
 | Action | How |
 |--------|-----|
-| Submit query | Type and press `Enter` or click **Submit** |
-| Clear log | Click **Clear** |
+| Submit a query | Type and press `Enter` or click **Submit** |
+| Clear the log | Click **Clear** |
 | Quit | Press `Ctrl+C` |
 
 ---
 
-## Dependencies
+## Stats panel
 
-All installed via `requirements.txt`:
+The right-hand panel runs a linear regression model over all 25 order totals and shows:
+
+- **Predicted next order value** — what the model expects order 1026 to be
+- **Trend** — whether order values are trending up or down
+- **Average order total** — mean across all 25 orders
+- **R² score** — how well the regression fits the data
+
+---
+
+## Key dependencies
 
 | Package | Purpose |
 |---------|---------|
-| `flask` | Runs the dummy order API |
-| `langgraph` | Agent graph orchestration |
-| `langchain` | LLM tooling and abstractions |
-| `langchain-openai` | OpenAI-compatible LLM client |
-| `requests` | HTTP calls to the local API |
-| `python-dotenv` | Loads `.env` file |
-| `textual` | Terminal UI framework |
+| `flask` | local order API |
+| `langgraph` | agent graph orchestration |
+| `langchain` + `langchain-openai` | LLM tooling |
+| `requests` | HTTP calls to the API |
+| `python-dotenv` | loads the `.env` file |
+| `textual` | terminal UI |
+| `scikit-learn` + `numpy` | linear regression model |

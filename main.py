@@ -1,6 +1,7 @@
 import json
 import logging
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from textual.app import App, ComposeResult
@@ -19,54 +20,50 @@ def extract_json(text: str) -> dict:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
+
     start = text.find('{')
     end = text.rfind('}')
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(text[start:end+1])
+            return json.loads(text[start:end + 1])
         except json.JSONDecodeError:
             pass
-    return {"orders": [], "error": "Could not parse model response", "raw": text[:200]}
+
+    return {"orders": [], "error": "could not parse model response", "raw": text[:200]}
 
 
 def run(query: str) -> str:
     result = agent.invoke({"messages": [("user", query)]})
+
     output = ""
     for msg in reversed(result["messages"]):
         if msg.content and msg.content.strip():
             output = msg.content
             break
-    parsed = extract_json(output)
-    return json.dumps(parsed, indent=2)
+
+    return json.dumps(extract_json(output), indent=2)
 
 
 def build_stats_panel() -> str:
-    """Build the prediction + stats panel text."""
-    stats = train_and_predict()
+    s = train_and_predict()
     return (
         f"[bold white]📊 Order Intelligence[/bold white]\n"
         f"──────────────────────\n"
-        f"[cyan]Predicted Next Order:[/cyan]  [bold yellow]${stats['predicted_next_order']}[/bold yellow]\n"
-        f"[cyan]Trend:[/cyan]                 {stats['trend']}\n"
-        f"[cyan]Avg Order Total:[/cyan]       [green]${stats['average_order_total']}[/green]\n"
-        f"[cyan]R² Score:[/cyan]              {stats['r_squared']}\n"
-        f"[cyan]Orders Analyzed:[/cyan]       {stats['orders_analyzed']}\n"
+        f"[cyan]Predicted Next Order:[/cyan]  [bold yellow]${s['predicted_next_order']}[/bold yellow]\n"
+        f"[cyan]Trend:[/cyan]                 {s['trend']}\n"
+        f"[cyan]Avg Order Total:[/cyan]       [green]${s['average_order_total']}[/green]\n"
+        f"[cyan]R² Score:[/cyan]              {s['r_squared']}\n"
+        f"[cyan]Orders Analyzed:[/cyan]       {s['orders_analyzed']}\n"
         f"──────────────────────\n"
-        f"[dim]Linear regression on order\nsequence 1001→1025[/dim]"
+        f"[dim]linear regression over\norders 1001 → 1025[/dim]"
     )
 
 
 class RaftApp(App):
     CSS = """
     Screen { background: #1a1a2e; }
-
     #main-layout { height: 100%; }
-
-    #left-panel {
-        width: 75%;
-        height: 100%;
-    }
-
+    #left-panel { width: 75%; height: 100%; }
     #right-panel {
         width: 25%;
         height: 100%;
@@ -74,21 +71,17 @@ class RaftApp(App):
         margin: 1;
         padding: 1;
     }
-
     #log {
         border: solid #4a4a8a;
         margin: 1;
         padding: 1;
         height: 80%;
     }
-
-    #query { border: solid #4a4a8a; margin: 1; width: 65%; }
+    #query  { border: solid #4a4a8a; margin: 1; width: 65%; }
     #submit { margin: 1; width: 14%; }
-    #clear { margin: 1; width: 14%; }
-
+    #clear  { margin: 1; width: 14%; }
     #spinner { height: 1; margin-left: 2; display: none; }
     #spinner.visible { display: block; }
-
     Horizontal { height: auto; }
     LoadingIndicator { height: 1; }
     """
@@ -111,14 +104,16 @@ class RaftApp(App):
         yield Footer()
 
     def on_mount(self):
-        self.query_one("#log", RichLog).write("[bold green]Raft Order Agent ready.[/bold green]")
-        self.query_one("#log", RichLog).write("[dim]25 orders loaded | Try: 'Show Ohio orders over $500' or 'Show all Electronics orders'[/dim]\n")
+        log = self.query_one("#log", RichLog)
+        log.write("[bold green]Raft Order Agent ready.[/bold green]")
+        log.write("[dim]25 orders loaded — try: 'Show Ohio orders over $500' or 'Show all orders from Texas'[/dim]\n")
         self.query_one(Input).focus()
 
     def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == "clear":
-            self.query_one("#log", RichLog).clear()
-            self.query_one("#log", RichLog).write("[bold green]Log cleared.[/bold green]")
+            log = self.query_one("#log", RichLog)
+            log.clear()
+            log.write("[bold green]Log cleared.[/bold green]")
         elif event.button.id == "submit":
             self._submit_query()
 
@@ -129,6 +124,7 @@ class RaftApp(App):
         query = self.query_one(Input).value.strip()
         if not query:
             return
+
         log = self.query_one("#log", RichLog)
         log.write(f"[bold yellow]Query:[/bold yellow] {query}")
         self.query_one(Input).value = ""
@@ -146,16 +142,13 @@ class RaftApp(App):
             result = event.worker.result
             log = self.query_one("#log", RichLog)
 
-            # Parse result to show inline stats
             try:
-                parsed = json.loads(result)
-                orders = parsed.get("orders", [])
-                count = len(orders)
-                if count > 0:
+                orders = json.loads(result).get("orders", [])
+                if orders:
                     total_val = sum(o.get("total", 0) for o in orders)
-                    avg_val = total_val / count
+                    avg_val = total_val / len(orders)
                     log.write(
-                        f"[bold green]✓ {count} order(s) found[/bold green] | "
+                        f"[bold green]✓ {len(orders)} order(s) found[/bold green] | "
                         f"[cyan]Total: ${total_val:,.2f}[/cyan] | "
                         f"[cyan]Avg: ${avg_val:,.2f}[/cyan]"
                     )
